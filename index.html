@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>進階人造衛星模擬系統</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        background-color: #000;
+        font-family: Arial, sans-serif;
+      }
+      canvas {
+        display: block;
+      }
+      .info-panel {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 15px;
+        border-radius: 10px;
+        max-width: 300px;
+      }
+      .controls {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 15px;
+        border-radius: 10px;
+        max-width: 400px;
+      }
+      .satellite-info {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 15px;
+        border-radius: 10px;
+        max-width: 300px;
+        max-height: 400px;
+        overflow-y: auto;
+        font-size: 14px;
+      }
+      .time-control {
+        position: absolute;
+        top: 50%;
+        right: 20px;
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 15px;
+        border-radius: 10px;
+      }
+      button {
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        margin: 5px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+      }
+      button:hover {
+        background-color: #45a049;
+      }
+      button.selected {
+        background-color: #2196f3;
+      }
+      .slider-container {
+        margin: 10px 0;
+      }
+      label {
+        display: inline-block;
+        width: 150px;
+      }
+      input[type="range"] {
+        width: 150px;
+        vertical-align: middle;
+      }
+      select {
+        background-color: #333;
+        color: white;
+        padding: 5px;
+        border-radius: 4px;
+        border: 1px solid #555;
+        width: 150px;
+      }
+      .tab-container {
+        margin-bottom: 10px;
+      }
+      .tab-button {
+        background-color: #333;
+        border: none;
+        color: white;
+        padding: 8px 12px;
+        cursor: pointer;
+        border-radius: 4px 4px 0 0;
+      }
+      .tab-button.active {
+        background-color: #4caf50;
+      }
+      .tab-content {
+        display: none;
+        padding: 10px;
+        border-top: 2px solid #4caf50;
+      }
+      .tab-content.active {
+        display: block;
+      }
+      .satellite-item {
+        margin-bottom: 8px;
+        padding: 5px;
+        border-bottom: 1px solid #555;
+      }
+      .satellite-item:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+      }
+      #time-display {
+        font-size: 18px;
+        margin-bottom: 10px;
+      }
+      .transmission-line {
+        stroke: rgba(0, 255, 255, 0.7);
+        stroke-width: 2;
+        stroke-dasharray: 5, 5;
+        fill: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="info-panel">
+      <h2>進階人造衛星模擬系統</h2>
+      <p>此模擬器展示了不同類型的人造衛星如何環繞地球運行。</p>
+      <p>衛星總數量: <span id="satellite-count">3</span></p>
+      <p>時間流速: <span id="time-speed">1.0</span>x</p>
+      <p>相機距離: <span id="camera-distance">15</span></p>
+    </div>
+
+    <div class="satellite-info" id="satellite-details">
+      <h3>衛星資訊面板</h3>
+      <div id="satellite-list"></div>
+    </div>
+
+    <div class="time-control">
+      <div id="time-display">模擬時間: 00:00:00</div>
+      <button id="time-speed-decrease">減慢時間</button>
+      <button id="time-speed-increase">加快時間</button>
+      <div class="slider-container">
+        <label for="day-night-cycle">日夜循環:</label>
+        <input type="range" id="day-night-cycle" min="0" max="1" step="0.01" value="0.25" />
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="tab-container">
+        <button class="tab-button active" data-tab="satellite-control">衛星控制</button>
+        <button class="tab-button" data-tab="environment-control">環境控制</button>
+        <button class="tab-button" data-tab="visual-effects">視覺效果</button>
+      </div>
+
+      <div class="tab-content active" id="satellite-control">
+        <div class="slider-container">
+          <label for="satellite-type">衛星類型:</label>
+          <select id="satellite-type">
+            <option value="communication">通訊衛星</option>
+            <option value="weather">氣象衛星</option>
+            <option value="navigation">導航衛星</option>
+            <option value="observation">地球觀測衛星</option>
+            <option value="military">軍事衛星</option>
+          </select>
+        </div>
+        <div class="slider-container">
+          <label for="orbit-height">軌道高度:</label>
+          <select id="orbit-height">
+            <option value="low">低軌道 (160-2000km)</option>
+            <option value="medium">中軌道 (2000-35786km)</option>
+            <option value="geostationary">地球同步軌道 (35786km)</option>
+            <option value="high">高軌道 (> 35786km)</option>
+          </select>
+        </div>
+        <button id="add-satellite">新增衛星</button>
+        <button id="remove-satellite">移除衛星</button>
+        <button id="toggle-satellite-data">顯示/隱藏軌道資料</button>
+        <button id="toggle-transmission">顯示/隱藏通訊效果</button>
+        <div class="slider-container">
+          <label for="speed-slider">衛星速度:</label>
+          <input type="range" id="speed-slider" min="0.1" max="2" step="0.1" value="1" />
+          <span id="speed-value">1.0</span>
+        </div>
+      </div>
+
+      <div class="tab-content" id="environment-control">
+        <button id="toggle-rotation">暫停/繼續地球旋轉</button>
+        <button id="toggle-moon">顯示/隱藏月球</button>
+        <button id="toggle-sun">顯示/隱藏太陽</button>
+        <button id="toggle-stars">顯示/隱藏星空</button>
+        <button id="toggle-clouds">顯示/隱藏雲層</button>
+        <div class="slider-container">
+          <label for="earth-rotation-speed">地球自轉速度:</label>
+          <input type="range" id="earth-rotation-speed" min="0.1" max="5" step="0.1" value="1" />
+          <span id="earth-speed-value">1.0</span>
+        </div>
+      </div>
+
+      <div class="tab-content" id="visual-effects">
+        <button id="toggle-orbit-lines">顯示/隱藏軌道線</button>
+        <button id="toggle-atmosphere">顯示/隱藏大氣層</button>
+        <button id="toggle-grid">顯示/隱藏座標網格</button>
+        <div class="slider-container">
+          <label for="camera-slider">相機距離:</label>
+          <input type="range" id="camera-slider" min="8" max="40" step="0.5" value="15" />
+        </div>
+      </div>
+    </div>
+
+    <!-- 引入 Three.js 庫 -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
+
+    <script>
+      // 初始化場景、相機和渲染器
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      document.body.appendChild(renderer.domElement);
+
+      // 設置相機位置
+      camera.position.z = 15;
+
+      // 添加軌道控制器
+      const controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+
+      // 添加環境光和方向光
+      const ambientLight = new THREE.AmbientLight(0x333333);
+      scene.add(ambientLight);
+
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+      directionalLight.position.set(5, 3, 5);
+      scene.add(directionalLight);
+
+      // 添加星空背景
+      const starsGeometry = new THREE.BufferGeometry();
+      const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.1 });
+
+      const starsVertices = [];
+      for (let i = 0; i < 10000; i++) {
+        const x = Math.random() * 2000 - 1000;
+        const y = Math.random() * 2000 - 1000;
+        const z = Math.random() * 2000 - 1000;
+        starsVertices.push(x, y, z);
+      }
+
+      starsGeometry.setAttribute("position", new THREE.Float32BufferAttribute(starsVertices, 3));
+      const stars = new THREE.Points(starsGeometry, starsMaterial);
+      scene.add(stars);
+
+      // 創建太陽
+      const sunGeometry = new THREE.SphereGeometry(10, 32, 32);
+      const sunTexture = new THREE.TextureLoader().load("https://threejs.org/examples/textures/planets/sun.jpg");
+      const sunMaterial = new THREE.MeshBasicMaterial({
+        map: sunTexture,
+        emissive: 0xffff00,
+        emissiveIntensity: 0.5,
+      });
+      const sun = new THREE.Mesh(sunGeometry, sunMaterial);
+      sun.position.set(100, 0, 0); // 將太陽放置在遠處
+      scene.add(sun);
+
+      // 創建太陽光源
+      const sunLight = new THREE.PointLight(0xffffff, 1.5, 1000);
+      sunLight.position.set(100, 0, 0);
+      scene.add(sunLight);
+
+      // 創建月球
+      const moonGeometry = new THREE.SphereGeometry(1.5, 32, 32);
+      const moonTexture = new THREE.TextureLoader().load("https://threejs.org/examples/textures/planets/moon_1024.jpg");
+      const moonMaterial = new THREE.MeshPhongMaterial({
+        map: moonTexture,
+        shininess: 5,
+      });
+      const moon = new THREE.Mesh(moonGeometry, moonMaterial);
+
+      // 創建月球軌道組
+      const moonOrbit = new THREE.Object3D();
+      scene.add(moonOrbit);
+      moonOrbit.add(moon);
+      moon.position.set(20, 0, 0);
+
+      // 創建地球大氣層
+      const atmosphereGeometry = new THREE.SphereGeometry(5.2, 64, 64);
+      const atmosphereMaterial = new THREE.MeshPhongMaterial({
+        color: 0x00a1ff,
+        transparent: true,
+        opacity: 0.1,
+        side: THREE.BackSide,
+      });
+      const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+      scene.add(atmosphere);
+
+      // 創建座標網格
+      const gridHelper = new THREE.GridHelper(100, 20, 0x888888, 0x444444);
+      gridHelper.rotation.x = Math.PI / 2;
+      gridHelper.visible = false;
+      scene.add(gridHelper);
+
+      // 創建地球
+      const earthGeometry = new THREE.SphereGeometry(5, 64, 64);
+      const earthTexture = new THREE.TextureLoader().load("https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg");
+      const earthNightTexture = new THREE.TextureLoader().load("https://threejs.org/examples/textures/planets/earth_nightmap.jpg");
+      const earthSpecularMap = new THREE.TextureLoader().load("https://threejs.org/examples/textures/planets/earth_specular_2048.jpg");
+      const earthMaterial = new THREE.MeshPhongMaterial({
+        map: earthTexture,
+        specularMap: earthSpecularMap,
+        specular: 0x333333,
+        shininess: 5,
+      });
+      const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+      scene.add(earth);
+
+      // 創建雲層
+      const cloudGeometry = new THREE.SphereGeometry(5.05, 64, 64);
+      const cloudTexture = new THREE.TextureLoader().load("https://threejs.org/examples/textures/planets/earth_clouds_1024.png");
+      const cloudMaterial = new THREE.MeshPhongMaterial({
+        map: cloudTexture,
+        transparent: true,
+        opacity: 0.4,
+      });
+      const clouds = new THREE.Mesh(cloudGeometry, cloudMaterial);
+      scene.add(clouds);
+
+      // 全域變數
+      const satellites = [];
+      let earthRotationEnabled = true;
+      let satelliteSpeed = 1.0;
+      let earthRotationSpeed = 1.0;
+      let timeMultiplier = 1.0;
+      let simTime = 0; // 模擬時間，單位：秒
+      let showSatelliteData = false;
+      let showTransmission = false;
+      let showMoon = true;
+      let showSun = true;
+      let showStars = true;
+      let showClouds = true;
+      let showOrbitLines = true;
+      let showAtmosphere = true;
+      let showGrid = false;
+      let dayCyclePosition = 0.25; // 初始太陽位置
+
+      // 衛星類型配置
+      const satelliteTypes = {
+        communication: {
+          name: "通訊衛星",
+          color: 0x2266aa,
+          texture: null,
+          model: null,
+          size: 0.3,
+          panelSize: [0.8, 0.1, 0.4],
+          orbitColor: 0x4488ff,
+          transmissionColor: 0x00ffff,
+          transmissionInterval: 2,
+          description: "用於電視、電話、數據等傳輸的通訊衛星，通常處於地球同步軌道",
+        },
+        weather: {
+          name: "氣象衛星",
+          color: 0x66cc66,
+          texture: null,
+          model: null,
+          size: 0.25,
+          panelSize: [0.7, 0.1, 0.35],
+          orbitColor: 0x66ff66,
+          transmissionColor: 0x66ff66,
+          transmissionInterval: 5,
+          description: "用於觀測地球大氣和雲層的衛星，協助氣象預報",
+        },
+        navigation: {
+          name: "導航衛星",
+          color: 0xcc6644,
+          texture: null,
+          model: null,
+          size: 0.2,
+          panelSize: [0.6, 0.1, 0.3],
+          orbitColor: 0xff8844,
+          transmissionColor: 0xffaa44,
+          transmissionInterval: 1,
+          description: "提供定位和導航服務的衛星，如GPS、北斗等系統",
+        },
+        observation: {
+          name: "地球觀測衛星",
+          color: 0xaaaaaa,
+          texture: null,
+          model: null,
+          size: 0.35,
+          panelSize: [0.9, 0.1, 0.45],
+          orbitColor: 0xcccccc,
+          transmissionColor: 0xccccff,
+          transmissionInterval: 4,
+          description: "用於觀測地球表面、環境監測和科學研究的衛星",
+        },
+        military: {
+          name: "軍事衛星",
+          color: 0x444444,
+          texture: null,
+          model: null,
+          size: 0.25,
+          panelSize: [0.7, 0.1, 0.35],
+          orbitColor: 0x888888,
+          transmissionColor: 0xff0000,
+          transmissionInterval: 3,
+          description: "用於軍事偵察、通訊和早期預警的衛星",
+        },
+      };
+
+      // 軌道高度配置
+      const orbitHeights = {
+        low: {
+          name: "低地球軌道",
+          minRadius: 7,
+          maxRadius: 8,
+          period: "90分鐘 - 2小時",
+          altitude: "160 - 2,000公里",
+          description: "用於地球觀測、偵察和太空站",
+        },
+        medium: {
+          name: "中地球軌道",
+          minRadius: 10,
+          maxRadius: 13,
+          period: "2 - 24小時",
+          altitude: "2,000 - 35,786公里",
+          description: "多用於導航衛星系統",
+        },
+        geostationary: {
+          name: "地球同步軌道",
+          minRadius: 15,
+          maxRadius: 15.5,
+          period: "24小時",
+          altitude: "35,786公里",
+          description: "通訊和氣象衛星的主要軌道，與地球自轉同步",
+        },
+        high: {
+          name: "高地球軌道",
+          minRadius: 18,
+          maxRadius: 25,
+          period: "> 24小時",
+          altitude: "> 35,786公里",
+          description: "用於特殊用途的衛星",
+        },
+      };
+
+      // 通訊效果線條組
+      const transmissionLines = new THREE.Group();
+      scene.add(transmissionLines);
+
+      // 創建衛星資訊標籤群組
+      const satelliteLabels = new THREE.Group();
+      scene.add(satelliteLabels);
+
+      // 格式化時間顯示
+      function formatTime(seconds) {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+      }
+
+      // 格式化距離顯示
+      function formatDistance(km) {
+        if (km < 1000) {
+          return `${km.toFixed(0)}公里`;
+        } else {
+          return `${(km / 1000).toFixed(1)}萬公里`;
+        }
+      }
+
+      // 創建衛星函數 (改進版)
+      function createSatellite(type = "communication", orbitType = "low", index = satellites.length) {
+        // 獲取類型和軌道配置
+        const typeConfig = satelliteTypes[type];
+        const orbitConfig = orbitHeights[orbitType];
+
+        // 計算實際軌道半徑
+        const orbitVariance = Math.random() * (orbitConfig.maxRadius - orbitConfig.minRadius);
+        const orbitRadius = orbitConfig.minRadius + orbitVariance;
+
+        // 創建衛星軌道
+        const orbitGeometry = new THREE.RingGeometry(orbitRadius - 0.05, orbitRadius + 0.05, 128);
+        const orbitMaterial = new THREE.MeshBasicMaterial({
+          color: typeConfig.orbitColor,
+          side: THREE.DoubleSide,
+          transparent: true,
+          opacity: showOrbitLines ? 0.3 : 0,
+        });
+        const orbit = new THREE.Mesh(orbitGeometry, orbitMaterial);
+        orbit.rotation.x = Math.PI / 2;
+        scene.add(orbit);
+
+        // 創建衛星本體
+        const satelliteGeometry = new THREE.SphereGeometry(typeConfig.size, 16, 16);
+        const satelliteMaterial = new THREE.MeshPhongMaterial({ color: typeConfig.color });
+        const satellite = new THREE.Mesh(satelliteGeometry, satelliteMaterial);
+
+        // 添加太陽能板
+        const [width, height, depth] = typeConfig.panelSize;
+        const panelGeometry = new THREE.BoxGeometry(width, height, depth);
+        const panelMaterial = new THREE.MeshPhongMaterial({ color: typeConfig.color });
+        const leftPanel = new THREE.Mesh(panelGeometry, panelMaterial);
+        const rightPanel = new THREE.Mesh(panelGeometry, panelMaterial);
+
+        leftPanel.position.x = -(typeConfig.size + width / 2);
+        rightPanel.position.x = typeConfig.size + width / 2;
+
+        satellite.add(leftPanel);
+        satellite.add(rightPanel);
+
+        // 設定衛星初始位置
+        const angle = Math.random() * Math.PI * 2;
+        satellite.position.x = orbitRadius * Math.cos(angle);
+        satellite.position.z = orbitRadius * Math.sin(angle);
+
+        // 計算軌道速度 (基於軌道半徑)
+        const baseSpeed = 0.005;
+        const speedFactor = Math.sqrt(7 / orbitRadius); // 基於開普勒第三定律的簡化
+        const rotationSpeed = baseSpeed * speedFactor;
+
+        // 添加衛星到場景
+        scene.add(satellite);
+
+        // 計算軌道週期 (單位: 分鐘)
+        const orbitPeriod = ((2 * Math.PI) / rotationSpeed / 60) * 20; // 轉換為模擬分鐘
+
+        // 儲存衛星資訊
+        const satId = `sat-${Date.now()}-${index}`;
+        const newSatellite = {
+          id: satId,
+          obj: satellite,
+          orbit: orbit,
+          radius: orbitRadius,
+          angle: angle,
+          rotationSpeed: rotationSpeed,
+          type: type,
+          orbitType: orbitType,
+          typeConfig: typeConfig,
+          orbitConfig: orbitConfig,
+          name: `${typeConfig.name}-${satellites.length + 1}`,
+          transmissionTimer: 0,
+          orbitPeriod: orbitPeriod, // 軌道週期 (模擬分鐘)
+          altitude: ((orbitRadius - 5) * 6371) / 5, // 近似高度 (km), 地球半徑 = 6371km
+          lastTransmissionTime: 0,
+        };
+
+        satellites.push(newSatellite);
+        updateSatelliteCount();
+        updateSatelliteList();
+
+        return newSatellite;
+      }
+
+      // 移除衛星函數 (改進版)
+      function removeSatellite() {
+        if (satellites.length > 0) {
+          const satellite = satellites.pop();
+          scene.remove(satellite.obj);
+          scene.remove(satellite.orbit);
+
+          // 移除相關的通訊線條
+          updateTransmissionLines();
+
+          updateSatelliteCount();
+          updateSatelliteList();
+        }
+      }
+
+      // 更新衛星列表
+      function updateSatelliteList() {
+        const listElement = document.getElementById("satellite-list");
+        listElement.innerHTML = "";
+
+        satellites.forEach((sat, index) => {
+          const satDiv = document.createElement("div");
+          satDiv.className = "satellite-item";
+          satDiv.innerHTML = `
+            <b>${sat.name}</b><br>
+            類型: ${sat.typeConfig.name}<br>
+            軌道: ${sat.orbitConfig.name}<br>
+            ${
+              showSatelliteData
+                ? `
+            高度: ${Math.round(sat.altitude)} km<br>
+            軌道周期: ${sat.orbitPeriod.toFixed(1)} 分鐘<br>
+            速度: ${(sat.rotationSpeed * 100).toFixed(2)}°/秒<br>
+            `
+                : ""
+            }
+          `;
+          listElement.appendChild(satDiv);
+        });
+      }
+
+      // 更新衛星計數
+      function updateSatelliteCount() {
+        document.getElementById("satellite-count").textContent = satellites.length;
+      }
+
+      // 更新衛星通訊效果
+      function updateTransmissionLines() {
+        // 清除先前的通訊線
+        while (transmissionLines.children.length > 0) {
+          transmissionLines.remove(transmissionLines.children[0]);
+        }
+
+        if (!showTransmission) return;
+
+        // 生成隨機通訊線
+        satellites.forEach(sat => {
+          // 基於間隔更新通訊效果
+          sat.transmissionTimer -= timeMultiplier;
+
+          if (sat.transmissionTimer <= 0) {
+            // 重設計時器
+            sat.transmissionTimer = sat.typeConfig.transmissionInterval + Math.random() * 5;
+            sat.lastTransmissionTime = simTime;
+
+            // 創建通訊線
+            const points = [];
+            points.push(new THREE.Vector3(sat.obj.position.x, sat.obj.position.y, sat.obj.position.z));
+            points.push(new THREE.Vector3(0, 0, 0)); // 地球中心
+
+            const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+            const lineMaterial = new THREE.LineBasicMaterial({
+              color: sat.typeConfig.transmissionColor,
+              transparent: true,
+              opacity: 0.8,
+            });
+
+            const transmissionLine = new THREE.Line(lineGeometry, lineMaterial);
+            transmissionLines.add(transmissionLine);
+          }
+        });
+      }
+
+      // 更新太陽和月球位置（基於日夜循環）
+      function updateCelestialBodies() {
+        // 移動太陽
+        const sunAngle = dayCyclePosition * Math.PI * 2;
+        const sunDistance = 100;
+        sun.position.x = Math.cos(sunAngle) * sunDistance;
+        sun.position.z = Math.sin(sunAngle) * sunDistance;
+        sunLight.position.copy(sun.position);
+
+        // 移動月球
+        const moonAngle = simTime * 0.00001 + Math.PI; // 讓月球和太陽位置相反
+        moonOrbit.rotation.y = moonAngle;
+      }
+
+      // 初始衛星
+      for (let i = 0; i < 3; i++) {
+        const types = Object.keys(satelliteTypes);
+        const orbitTypes = Object.keys(orbitHeights);
+        const randomType = types[Math.floor(Math.random() * types.length)];
+        const randomOrbit = orbitTypes[Math.floor(Math.random() * orbitTypes.length)];
+        createSatellite(randomType, randomOrbit, i);
+      }
+
+      // 事件監聽
+      document.getElementById("add-satellite").addEventListener("click", () => {
+        const type = document.getElementById("satellite-type").value;
+        const orbitHeight = document.getElementById("orbit-height").value;
+        createSatellite(type, orbitHeight);
+      });
+
+      document.getElementById("remove-satellite").addEventListener("click", removeSatellite);
+
+      document.getElementById("toggle-rotation").addEventListener("click", () => {
+        earthRotationEnabled = !earthRotationEnabled;
+      });
+
+      document.getElementById("toggle-satellite-data").addEventListener("click", () => {
+        showSatelliteData = !showSatelliteData;
+        updateSatelliteList();
+      });
+
+      document.getElementById("toggle-transmission").addEventListener("click", () => {
+        showTransmission = !showTransmission;
+        if (!showTransmission) {
+          // 清除所有通訊線
+          while (transmissionLines.children.length > 0) {
+            transmissionLines.remove(transmissionLines.children[0]);
+          }
+        }
+      });
+
+      document.getElementById("toggle-moon").addEventListener("click", () => {
+        showMoon = !showMoon;
+        moon.visible = showMoon;
+      });
+
+      document.getElementById("toggle-sun").addEventListener("click", () => {
+        showSun = !showSun;
+        sun.visible = showSun;
+      });
+
+      document.getElementById("toggle-stars").addEventListener("click", () => {
+        showStars = !showStars;
+        stars.visible = showStars;
+      });
+
+      document.getElementById("toggle-clouds").addEventListener("click", () => {
+        showClouds = !showClouds;
+        clouds.visible = showClouds;
+      });
+
+      document.getElementById("toggle-orbit-lines").addEventListener("click", () => {
+        showOrbitLines = !showOrbitLines;
+        satellites.forEach(sat => {
+          sat.orbit.material.opacity = showOrbitLines ? 0.3 : 0;
+        });
+      });
+
+      document.getElementById("toggle-atmosphere").addEventListener("click", () => {
+        showAtmosphere = !showAtmosphere;
+        atmosphere.visible = showAtmosphere;
+      });
+
+      document.getElementById("toggle-grid").addEventListener("click", () => {
+        showGrid = !showGrid;
+        gridHelper.visible = showGrid;
+      });
+
+      document.getElementById("time-speed-decrease").addEventListener("click", () => {
+        timeMultiplier = Math.max(0.1, timeMultiplier - 0.1);
+        document.getElementById("time-speed").textContent = timeMultiplier.toFixed(1);
+      });
+
+      document.getElementById("time-speed-increase").addEventListener("click", () => {
+        timeMultiplier = Math.min(10, timeMultiplier + 0.1);
+        document.getElementById("time-speed").textContent = timeMultiplier.toFixed(1);
+      });
+
+      const speedSlider = document.getElementById("speed-slider");
+      speedSlider.addEventListener("input", () => {
+        satelliteSpeed = parseFloat(speedSlider.value);
+        document.getElementById("speed-value").textContent = satelliteSpeed.toFixed(1);
+      });
+
+      const cameraSlider = document.getElementById("camera-slider");
+      cameraSlider.addEventListener("input", () => {
+        const distance = parseFloat(cameraSlider.value);
+        camera.position.z = distance;
+        document.getElementById("camera-distance").textContent = distance;
+      });
+
+      const earthRotationSpeedSlider = document.getElementById("earth-rotation-speed");
+      earthRotationSpeedSlider.addEventListener("input", () => {
+        earthRotationSpeed = parseFloat(earthRotationSpeedSlider.value);
+        document.getElementById("earth-speed-value").textContent = earthRotationSpeed.toFixed(1);
+      });
+
+      const dayCycleSlider = document.getElementById("day-night-cycle");
+      dayCycleSlider.addEventListener("input", () => {
+        dayCyclePosition = parseFloat(dayCycleSlider.value);
+        updateCelestialBodies();
+      });
+
+      // 標籤頁切換
+      document.querySelectorAll(".tab-button").forEach(button => {
+        button.addEventListener("click", () => {
+          // 移除所有標籤頁的 active 類
+          document.querySelectorAll(".tab-button").forEach(btn => {
+            btn.classList.remove("active");
+          });
+          document.querySelectorAll(".tab-content").forEach(content => {
+            content.classList.remove("active");
+          });
+
+          // 添加目標標籤頁的 active 類
+          button.classList.add("active");
+          const targetTab = button.getAttribute("data-tab");
+          document.getElementById(targetTab).classList.add("active");
+        });
+      });
+
+      // 視窗大小調整
+      window.addEventListener("resize", () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      // 動畫循環
+      function animate() {
+        requestAnimationFrame(animate);
+
+        // 更新模擬時間
+        simTime += timeMultiplier;
+        document.getElementById("time-display").textContent = `模擬時間: ${formatTime(simTime)}`;
+
+        // 更新太陽和月球位置
+        updateCelestialBodies();
+
+        // 更新地球自轉
+        if (earthRotationEnabled) {
+          earth.rotation.y += 0.001 * earthRotationSpeed;
+          clouds.rotation.y += 0.0012 * earthRotationSpeed;
+          atmosphere.rotation.y = earth.rotation.y;
+        }
+
+        // 更新衛星位置
+        satellites.forEach(sat => {
+          sat.angle += sat.rotationSpeed * satelliteSpeed * timeMultiplier;
+          sat.obj.position.x = sat.radius * Math.cos(sat.angle);
+          sat.obj.position.z = sat.radius * Math.sin(sat.angle);
+          sat.obj.rotation.y += 0.01;
+        });
+
+        // 每 30 幀更新一次通訊效果
+        if (simTime % 30 < 1) {
+          updateTransmissionLines();
+        }
+
+        // 每 60 幀更新一次衛星資訊
+        if (simTime % 60 < 1 && showSatelliteData) {
+          updateSatelliteList();
+        }
+
+        controls.update();
+        renderer.render(scene, camera);
+      }
+
+      animate();
+    </script>
+  </body>
+</html>
